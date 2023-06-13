@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -25,17 +26,19 @@
           <tr>
             <th scope="col">Short URL ID</th>
             <th scope="col">Long URL</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
           <% for (let id in urls) { %>
             <tr>
               <td><%= id %></td>
-              <td><%= urls[id] %></td> 
+              <td><%= urls[id] %></td>
               <td>
-                <form method="POST" action="/urls/9sm5xK/delete">
+                <a href="/urls/<%= id %>" class="btn btn-primary">Edit</a>
+                <form method="POST" action="/urls/<%= id %>/delete" style="display: inline-block;">
                   <button type="submit" class="btn btn-danger">Delete</button>
-              </form>
+                </form>
               </td>
             </tr>
           <% } %>
@@ -61,3 +64,5 @@
     ></script>
   </body>
 </html>
+
+
