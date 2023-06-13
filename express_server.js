@@ -25,6 +25,13 @@ app.post('/urls/:id/delete', (req, res) => {
   const id = req.params.id;
   delete urlDatabase[id];
   res.redirect('/urls');
+}); 
+
+
+app.post("/login", (req, res) => {
+  const username = req.body.username; // Get the username value from the request body
+  res.cookie("username", username); // Set the "username" cookie with the username value
+  res.redirect("/urls"); // Redirect back to the /urls page
 });
 
 
