@@ -78,6 +78,10 @@ app.get("/urls/:id", (req, res) => {
     username: req.cookies.username
   };
   res.render("urls_show", templateVars);
+});  
+
+app.get("/register", (req, res) => {
+  res.render("register");
 });
 
 app.listen(PORT, () => {
