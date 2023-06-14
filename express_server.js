@@ -29,7 +29,17 @@ const getUserByEmail = (email) => {
   return null;
 };
 
-app.post("/urls", (req, res) => {
+// Middleware to check if the user is logged in
+const requireLogin = (req, res, next) => {
+  const userId = req.cookies.user_id;
+  if (userId && users[userId]) {
+    next();
+  } else {
+    res.status(403).send("<html><body>Please log in to shorten URLs.</body></html>");
+  }
+};
+
+app.post("/urls", requireLogin, (req, res) => {
   const id = generateRandomString();
   const longURL = req.body.longURL;
   urlDatabase[id] = longURL;
@@ -120,11 +130,15 @@ app.get("/hello", (req, res) => {
 
 app.get("/u/:id", (req, res) => {
   const shortURL = req.params.id;
-  const longURL = urlDatabase[shortURL];
+  const longURL = urlDatabase[shortURL]; 
+  if (!longURL) {
+    res.status(404).send("<html><body>Short URL not found</body></html>");
+    return;
+  }
   res.redirect(longURL);
 });
 
-app.get("/urls", (req, res) => {
+app.get("/urls", requireLogin, (req, res) => {
   const templateVars = {
     urls: urlDatabase,
     user: users[req.cookies.user_id],
@@ -133,14 +147,14 @@ app.get("/urls", (req, res) => {
   res.render("urls_index", templateVars);
 });
 
-app.get("/urls/new", (req, res) => {
+app.get("/urls/new", requireLogin, (req, res) => {
   const templateVars = {
     user: users[req.cookies.user_id],
   };
   res.render("urls_new", templateVars);
 });
 
-app.get("/urls/:id", (req, res) => {
+app.get("/urls/:id", requireLogin, (req, res) => {
   const templateVars = {
     id: req.params.id,
     longURL: urlDatabase[req.params.id],
@@ -150,13 +164,26 @@ app.get("/urls/:id", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
+  // Check if the user is already logged in
+  if (req.cookies.user_id && users[req.cookies.user_id]) {
+    res.redirect("/urls");
+    return;
+  }
+
   res.render("register");
 });
 
 app.get("/login", (req, res) => {
+  // Check if the user is already logged in
+  if (req.cookies.user_id && users[req.cookies.user_id]) {
+    res.redirect("/urls");
+    return;
+  }
+
   res.render("login");
 });
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
+
