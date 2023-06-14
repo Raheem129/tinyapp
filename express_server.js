@@ -6,10 +6,7 @@ const users = {};
 
 app.set("view engine", "ejs");
 
-const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
-};
+const urlDatabase = {};
 
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -29,25 +26,51 @@ const getUserByEmail = (email) => {
   return null;
 };
 
+// Function to get URLs for a user
+const urlsForUser = (id) => {
+  const userURLs = {};
+  for (const urlId in urlDatabase) {
+    if (urlDatabase[urlId].userID === id) {
+      userURLs[urlId] = urlDatabase[urlId];
+    }
+  }
+  return userURLs;
+};
+
 // Middleware to check if the user is logged in
 const requireLogin = (req, res, next) => {
   const userId = req.cookies.user_id;
   if (userId && users[userId]) {
     next();
   } else {
-    res.status(403).send("<html><body>Please log in to shorten URLs.</body></html>");
+    res.status(403).send("<html><body>Please log in to access this page.</body></html>");
+  }
+};
+
+// Middleware to check if the user owns the URL
+const requireOwnership = (req, res, next) => {
+  const userId = req.cookies.user_id;
+  const id = req.params.id;
+  if (urlDatabase[id] && urlDatabase[id].userID === userId) {
+    next();
+  } else {
+    res.status(403).send("<html><body>You do not have permission to access this URL.</body></html>");
   }
 };
 
 app.post("/urls", requireLogin, (req, res) => {
   const id = generateRandomString();
   const longURL = req.body.longURL;
-  urlDatabase[id] = longURL;
+  const userId = req.cookies.user_id;
+  urlDatabase[id] = {
+    longURL,
+    userID: userId
+  };
   console.log(urlDatabase);
   res.redirect(`/urls/${id}`);
 });
 
-app.post('/urls/:id/delete', (req, res) => {
+app.post('/urls/:id/delete', requireLogin, requireOwnership, (req, res) => {
   const id = req.params.id;
   delete urlDatabase[id];
   res.redirect('/urls');
@@ -130,37 +153,47 @@ app.get("/hello", (req, res) => {
 
 app.get("/u/:id", (req, res) => {
   const shortURL = req.params.id;
-  const longURL = urlDatabase[shortURL]; 
-  if (!longURL) {
+  const url = urlDatabase[shortURL];
+  if (url && url.longURL) {
+    res.redirect(url.longURL);
+  } else {
     res.status(404).send("<html><body>Short URL not found</body></html>");
-    return;
   }
-  res.redirect(longURL);
 });
 
 app.get("/urls", requireLogin, (req, res) => {
+  const userId = req.cookies.user_id;
+  const userURLs = urlsForUser(userId);
   const templateVars = {
-    urls: urlDatabase,
-    user: users[req.cookies.user_id],
+    urls: userURLs,
+    user: users[userId]
   };
-  console.log(users);
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", requireLogin, (req, res) => {
   const templateVars = {
-    user: users[req.cookies.user_id],
+    user: users[req.cookies.user_id]
   };
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:id", requireLogin, (req, res) => {
-  const templateVars = {
-    id: req.params.id,
-    longURL: urlDatabase[req.params.id],
-    user: users[req.cookies.user_id],
-  };
-  res.render("urls_show", templateVars);
+  const userId = req.cookies.user_id;
+  const id = req.params.id;
+  const url = urlDatabase[id];
+  if (!url) {
+    res.status(404).send("<html><body>URL not found</body></html>");
+  } else if (url.userID !== userId) {
+    res.status(403).send("<html><body>You do not have permission to view this URL.</body></html>");
+  } else {
+    const templateVars = {
+      id: req.params.id,
+      longURL: url.longURL,
+      user: users[userId]
+    };
+    res.render("urls_show", templateVars);
+  }
 });
 
 app.get("/register", (req, res) => {
@@ -186,4 +219,7 @@ app.get("/login", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
+
+
+
 
