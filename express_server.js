@@ -19,6 +19,16 @@ const generateRandomString = () => {
   return Math.random().toString(36).substring(2, 8);
 };
 
+// Function to get a user by email
+const getUserByEmail = (email) => {
+  for (const userId in users) {
+    if (users[userId].email === email) {
+      return users[userId];
+    }
+  }
+  return null;
+};
+
 app.post("/urls", (req, res) => {
   const id = generateRandomString();
   const longURL = req.body.longURL;
@@ -34,14 +44,27 @@ app.post('/urls/:id/delete', (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  const username = req.body.username;
-  res.cookie("username", username);
+  const { email, password } = req.body;
+
+  // Find user by email
+  const user = getUserByEmail(email);
+
+  // Check if user exists and passwords match
+  if (!user || user.password !== password) {
+    res.status(403).send("Invalid email or password");
+    return;
+  }
+
+  // Set the user_id cookie with the matching user's ID
+  res.cookie("user_id", user.id);
+
+  // Redirect to the /urls page
   res.redirect("/urls");
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("username");
-  res.redirect("/urls");
+  res.clearCookie("user_id");
+  res.redirect("/login");
 });
 
 app.post("/register", (req, res) => {
@@ -72,7 +95,7 @@ app.post("/register", (req, res) => {
   };
 
   // Save the new user object in the users data store
-  users[userId] = newUser; 
+  users[userId] = newUser;
 
   console.log(users);
 
@@ -128,7 +151,7 @@ app.get("/urls/:id", (req, res) => {
 
 app.get("/register", (req, res) => {
   res.render("register");
-}); 
+});
 
 app.get("/login", (req, res) => {
   res.render("login");
@@ -137,4 +160,3 @@ app.get("/login", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
-
