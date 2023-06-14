@@ -47,6 +47,20 @@ app.post("/logout", (req, res) => {
 app.post("/register", (req, res) => {
   const { email, password } = req.body;
 
+  // Check if the email or password is empty
+  if (!email || !password) {
+    res.status(400).send("Email and password cannot be empty.");
+    return;
+  }
+
+  // Check if the email already exists in the users object
+  for (const userId in users) {
+    if (users[userId].email === email) {
+      res.status(400).send("Email already registered.");
+      return;
+    }
+  }
+
   // Generate a random ID for the new user
   const userId = generateRandomString();
 
@@ -58,10 +72,15 @@ app.post("/register", (req, res) => {
   };
 
   // Save the new user object in the users data store
-  users[userId] = newUser;
+  users[userId] = newUser; 
 
-  // Redirect to a different page after successful registration
-  res.redirect("/login");
+  console.log(users);
+
+  // Set the user_id cookie with the new user's ID
+  res.cookie("user_id", userId);
+
+  // Redirect to the /urls page
+  res.redirect("/urls");
 });
 
 app.get("/", (req, res) => {
@@ -85,8 +104,9 @@ app.get("/u/:id", (req, res) => {
 app.get("/urls", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    user: users[req.cookies.user_id], 
+    user: users[req.cookies.user_id],
   };
+  console.log(users);
   res.render("urls_index", templateVars);
 });
 
