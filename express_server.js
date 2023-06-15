@@ -1,33 +1,31 @@
 const express = require("express");
-const cookieParser = require("cookie-parser");
-const bcrypt = require("bcryptjs"); // Added bcrypt module
+const bcrypt = require("bcryptjs");
+const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080;
 const users = {};
+const { getUserByEmail } = require('./helpers');
 
 app.set("view engine", "ejs");
 
 const urlDatabase = {};
 
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 
-// Function to generate a random string for user ID
+app.use(
+  cookieSession({
+    name: "session",
+    keys: ["secret-key"],
+  })
+);
+
 const generateRandomString = () => {
   return Math.random().toString(36).substring(2, 8);
 };
 
-// Function to get a user by email
-const getUserByEmail = (email) => {
-  for (const userId in users) {
-    if (users[userId].email === email) {
-      return users[userId];
-    }
-  }
-  return null;
-};
 
-// Function to get URLs for a user
+
+
 const urlsForUser = (id) => {
   const userURLs = {};
   for (const urlId in urlDatabase) {
@@ -38,9 +36,8 @@ const urlsForUser = (id) => {
   return userURLs;
 };
 
-// Middleware to check if the user is logged in
 const requireLogin = (req, res, next) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   if (userId && users[userId]) {
     next();
   } else {
@@ -48,9 +45,8 @@ const requireLogin = (req, res, next) => {
   }
 };
 
-// Middleware to check if the user owns the URL
 const requireOwnership = (req, res, next) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   const id = req.params.id;
   if (urlDatabase[id] && urlDatabase[id].userID === userId) {
     next();
@@ -62,7 +58,7 @@ const requireOwnership = (req, res, next) => {
 app.post("/urls", requireLogin, (req, res) => {
   const id = generateRandomString();
   const longURL = req.body.longURL;
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   urlDatabase[id] = {
     longURL,
     userID: userId
@@ -80,37 +76,31 @@ app.post('/urls/:id/delete', requireLogin, requireOwnership, (req, res) => {
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
 
-  // Find user by email
-  const user = getUserByEmail(email);
+  const user = getUserByEmail(email, users);
 
-  // Check if user exists and passwords match
-  if (!user || !bcrypt.compareSync(password, user.password)) { // Compare hashed password
+  if (!user || !bcrypt.compareSync(password, user.password)) {
     res.status(403).send("Invalid email or password");
     return;
   }
 
-  // Set the user_id cookie with the matching user's ID
-  res.cookie("user_id", user.id);
+  req.session.user_id = user.id;
 
-  // Redirect to the /urls page
   res.redirect("/urls");
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
+  req.session = null;
   res.redirect("/login");
 });
 
 app.post("/register", (req, res) => {
   const { email, password } = req.body;
 
-  // Check if the email or password is empty
   if (!email || !password) {
     res.status(400).send("Email and password cannot be empty.");
     return;
   }
 
-  // Check if the email already exists in the users object
   for (const userId in users) {
     if (users[userId].email === email) {
       res.status(400).send("Email already registered.");
@@ -118,28 +108,19 @@ app.post("/register", (req, res) => {
     }
   }
 
-  // Generate a random ID for the new user
   const userId = generateRandomString();
-
-  // Hash the password
   const hashedPassword = bcrypt.hashSync(password, 10);
 
-  // Create a new user object
   const newUser = {
     id: userId,
     email,
-    password: hashedPassword, // Save the hashed password
+    password: hashedPassword,
   };
 
-  // Save the new user object in the users data store
   users[userId] = newUser;
 
-  console.log(users);
+  req.session.user_id = userId;
 
-  // Set the user_id cookie with the new user's ID
-  res.cookie("user_id", userId);
-
-  // Redirect to the /urls page
   res.redirect("/urls");
 });
 
@@ -166,24 +147,24 @@ app.get("/u/:id", (req, res) => {
 });
 
 app.get("/urls", requireLogin, (req, res) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   const userURLs = urlsForUser(userId);
   const templateVars = {
     urls: userURLs,
-    user: users[userId]
+    user: users[userId],
   };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", requireLogin, (req, res) => {
   const templateVars = {
-    user: users[req.cookies.user_id]
+    user: users[req.session.user_id],
   };
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:id", requireLogin, (req, res) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   const id = req.params.id;
   const url = urlDatabase[id];
   if (!url) {
@@ -194,15 +175,14 @@ app.get("/urls/:id", requireLogin, (req, res) => {
     const templateVars = {
       id: req.params.id,
       longURL: url.longURL,
-      user: users[userId]
+      user: users[userId],
     };
     res.render("urls_show", templateVars);
   }
 });
 
 app.get("/register", (req, res) => {
-  // Check if the user is already logged in
-  if (req.cookies.user_id && users[req.cookies.user_id]) {
+  if (req.session.user_id && users[req.session.user_id]) {
     res.redirect("/urls");
     return;
   }
@@ -211,8 +191,7 @@ app.get("/register", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-  // Check if the user is already logged in
-  if (req.cookies.user_id && users[req.cookies.user_id]) {
+  if (req.session.user_id && users[req.session.user_id]) {
     res.redirect("/urls");
     return;
   }
@@ -223,6 +202,4 @@ app.get("/login", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
-
-
 
