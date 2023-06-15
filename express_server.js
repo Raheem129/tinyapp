@@ -52,6 +52,7 @@ const requireOwnership = (req, res, next) => {
   }
 };
 
+// Create a new URL
 app.post("/urls", requireLogin, (req, res) => {
   const id = generateRandomString();
   const longURL = req.body.longURL;
@@ -64,12 +65,14 @@ app.post("/urls", requireLogin, (req, res) => {
   res.redirect(`/urls/${id}`);
 });
 
+// Delete a URL
 app.post('/urls/:id/delete', requireLogin, requireOwnership, (req, res) => {
   const id = req.params.id;
   delete urlDatabase[id];
   res.redirect('/urls');
 });
 
+// User login
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
 
@@ -85,11 +88,13 @@ app.post("/login", (req, res) => {
   res.redirect("/urls");
 });
 
+// User logout
 app.post("/logout", (req, res) => {
   req.session = null;
   res.redirect("/login");
 });
 
+// User registration
 app.post("/register", (req, res) => {
   const { email, password } = req.body;
 
@@ -121,18 +126,22 @@ app.post("/register", (req, res) => {
   res.redirect("/urls");
 });
 
+// Home page
 app.get("/", (req, res) => {
   res.send("Hello!");
 });
 
+// Get JSON representation of urlDatabase
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
+// Hello page
 app.get("/hello", (req, res) => {
   res.send("<html><body>Hello <b>World</b></body></html>\n");
 });
 
+// Redirect to longURL for the given shortURL
 app.get("/u/:id", (req, res) => {
   const shortURL = req.params.id;
   const url = urlDatabase[shortURL];
@@ -143,16 +152,26 @@ app.get("/u/:id", (req, res) => {
   }
 });
 
-app.get("/urls", requireLogin, (req, res) => {
+// List all URLs for the logged-in user
+app.get("/urls", (req, res) => {
   const userId = req.session.user_id;
-  const userURLs = urlsForUser(userId);
-  const templateVars = {
-    urls: userURLs,
-    user: users[userId],
-  };
-  res.render("urls_index", templateVars);
+  if (userId && users[userId]) {
+    const userURLs = urlsForUser(userId);
+    const templateVars = {
+      urls: userURLs,
+      user: users[userId],
+    };
+    res.render("urls_index", templateVars);
+  } else {
+    const templateVars = {
+      urls: {},
+      user: null,
+    };
+    res.render("urls_index", templateVars);
+  }
 });
 
+// Create a new URL page
 app.get("/urls/new", requireLogin, (req, res) => {
   const templateVars = {
     user: users[req.session.user_id],
@@ -160,6 +179,7 @@ app.get("/urls/new", requireLogin, (req, res) => {
   res.render("urls_new", templateVars);
 });
 
+// Show a specific URL page
 app.get("/urls/:id", requireLogin, (req, res) => {
   const userId = req.session.user_id;
   const id = req.params.id;
@@ -178,6 +198,7 @@ app.get("/urls/:id", requireLogin, (req, res) => {
   }
 });
 
+// Registration page
 app.get("/register", (req, res) => {
   if (req.session.user_id && users[req.session.user_id]) {
     res.redirect("/urls");
@@ -187,6 +208,7 @@ app.get("/register", (req, res) => {
   res.render("register");
 });
 
+// Login page
 app.get("/login", (req, res) => {
   if (req.session.user_id && users[req.session.user_id]) {
     res.redirect("/urls");
