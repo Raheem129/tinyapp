@@ -23,9 +23,6 @@ const generateRandomString = () => {
   return Math.random().toString(36).substring(2, 8);
 };
 
-
-
-
 const urlsForUser = (id) => {
   const userURLs = {};
   for (const urlId in urlDatabase) {
@@ -41,7 +38,7 @@ const requireLogin = (req, res, next) => {
   if (userId && users[userId]) {
     next();
   } else {
-    res.status(403).send("<html><body>Please log in to access this page.</body></html>");
+    res.redirect("/login");
   }
 };
 
@@ -202,4 +199,3 @@ app.get("/login", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
-
