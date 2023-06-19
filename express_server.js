@@ -176,7 +176,7 @@ app.get("/error/not-logged-in", (req, res) => {
   const templateVars = {
     error: "You must be logged in to view this page.",
   };
-  res.render("error", templateVars); // Create an error.ejs template for displaying the error message.
+  res.render("error", templateVars); 
 });
 
 // Create a new URL page
