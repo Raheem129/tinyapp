@@ -143,16 +143,6 @@ app.get("/", (req, res) => {
   }
 });
 
-// Get JSON representation of urlDatabase
-app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
-});
-
-// Hello page
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
-});
-
 // Redirect to longURL for the given shortURL
 app.get("/u/:id", (req, res) => {
   const shortURL = req.params.id;
