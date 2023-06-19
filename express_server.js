@@ -3,12 +3,11 @@ const bcrypt = require("bcryptjs");
 const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080;
-const users = {};
 const { getUserByEmail } = require('./helpers');
+const { users, urlDatabase } = require("./databases");
 
 app.set("view engine", "ejs");
 
-const urlDatabase = {};
 
 app.use(express.urlencoded({ extended: true }));
 
@@ -61,7 +60,6 @@ app.post("/urls", requireLogin, (req, res) => {
     longURL,
     userID: userId
   };
-  console.log(urlDatabase);
   res.redirect(`/urls/${id}`);
 });
 
@@ -70,7 +68,16 @@ app.post('/urls/:id/delete', requireLogin, requireOwnership, (req, res) => {
   const id = req.params.id;
   delete urlDatabase[id];
   res.redirect('/urls');
+}); 
+
+// POST /urls/:id
+app.post("/urls/:id", requireLogin, requireOwnership, (req, res) => {
+  const id = req.params.id;
+  const longURL = req.body.longURL;
+  urlDatabase[id].longURL = longURL;
+  res.redirect("/urls");
 });
+
 
 // User login
 app.post("/login", (req, res) => {
@@ -128,7 +135,12 @@ app.post("/register", (req, res) => {
 
 // Home page
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  const userId = req.session.user_id;
+  if (userId && users[userId]) {
+    res.redirect("/urls");
+  } else {
+    res.redirect("/login");
+  }
 });
 
 // Get JSON representation of urlDatabase
@@ -155,20 +167,26 @@ app.get("/u/:id", (req, res) => {
 // List all URLs for the logged-in user
 app.get("/urls", (req, res) => {
   const userId = req.session.user_id;
-  if (userId && users[userId]) {
+  if (!userId || !users[userId]) {
+    const templateVars = {
+      error: "You must be logged in to view this page.",
+    };
+    res.render("error", templateVars); 
+  } else {
     const userURLs = urlsForUser(userId);
     const templateVars = {
       urls: userURLs,
       user: users[userId],
     };
     res.render("urls_index", templateVars);
-  } else {
-    const templateVars = {
-      urls: {},
-      user: null,
-    };
-    res.render("urls_index", templateVars);
   }
+}); 
+
+app.get("/error/not-logged-in", (req, res) => {
+  const templateVars = {
+    error: "You must be logged in to view this page.",
+  };
+  res.render("error", templateVars); // Create an error.ejs template for displaying the error message.
 });
 
 // Create a new URL page
